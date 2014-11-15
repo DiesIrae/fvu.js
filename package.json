@@ -1,0 +1,18 @@
+{
+  "name": "fvu-d3-node-socket",
+  "version": "0.0.3",
+  "description": "some testing",
+  "dependencies": {
+    "express": "^4.10.1",
+    "socket.io": "^1.2.0",
+    "fast-csv": "^0.5.4",
+    "mongodb": "^1.4.19"
+  },
+  "subdomain": "cichelero-fvu",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": "0.10.x"
+  }
+}

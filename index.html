@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<style>
+  .input-select { width: 100%; }
+  .xAxis {
+    font-size: 12px; 
+    font-family: Helvetica, sans-serif;
+    fill: black;
+  }
+  .values {
+    font-size: 10px; 
+    font-family: Helvetica, sans-serif;
+    fill: white;
+  }
+</style>
+
+<h1>Damage Family Comparison</h1>
+
+<div>
+<table border="0" width="400px">
+  <tr>
+    <td colspan="2" bgcolor="darkred" style="color:white">SAMPLE 1</td>
+    <td colspan="2" bgcolor="darkblue" style="color:white">SAMPLE 2</td>
+  </tr>
+  <tr>
+    <td>Brand: </td>
+    <td>
+      <select id="tb1" name="truckBrand" size=1 class="input-select"></select>
+    </td>
+    <td>Brand: </td>
+    <td>
+      <select id="tb2" name="truckBrand" size=1 class="input-select"></select>
+    </td>
+  </tr>
+  <tr>
+    <td width="80px">Exam Year: </td>
+    <td>
+      <select id="ey1" name="examYear" size=1 class="input-select"></select>
+    </td>
+      <td width="80px">Exam Year: </td>
+    <td>
+      <select id="ey2" name="examYear" size=1 class="input-select"></select>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2">
+      <button onclick="makeRedTransition();" style="width:100%;background-color:darkred;color:white">Switch!</button>
+    </td>
+    <td colspan="2">
+      <button onclick="makeBlueTransition();" style="width:100%;background-color:darkblue;color:white">Switch!</button>
+    </td>
+  </tr>
+</table>
+</div>
+
+
+<div>
+  <svg class="chart"></svg>
+</div>
+
+<script type="text/javascript" src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
+<script type="text/javascript" src="http://d3js.org/d3.v3.min.js"></script> 
+<script type="text/javascript">
+
+var socket = io();
+
+// Parameters
+var width = 400;
+var barWidth = (width / 11) - 10;
+var height = 300;
+var padding = 30;
+
+// Scale
+var y_max = 0.5;
+var x = d3.scale.linear().domain([0, 11]).range([0, width]);
+var y = d3.scale.linear().domain([0, y_max])
+  .rangeRound([0, height]);
+
+// add the canvas to the DOM
+var svg = d3.select(".chart")
+    .attr("width", width)
+    .attr("height", height+padding)
+  .append("g");
+
+// require unique values to put into the filters
+var uniqueColumns = ['brand','exam_year'];
+socket.emit('getUnique', uniqueColumns);
+
+//-------------------------------------------------------
+// When receiving new data
+//-------------------------------------------------------
+
+socket.on('updateGraph', function(msg){
+  //update the graphs
+  updateGraph(msg.data, msg.color);
+});
+
+socket.on('uniqueDict', function(uniqueDict){
+  //update the filters
+  fillFilters(uniqueDict);
+});
+
+//-------------------------------------------------------
+// makeTransition function
+//-------------------------------------------------------
+
+function makeRedTransition() {
+  var ey1List = document.getElementById("ey1");
+  var tb1List = document.getElementById("tb1");
+  var params = {
+    brand : tb1List.options[tb1List.selectedIndex].text,
+    year : ey1List.options[ey1List.selectedIndex].text,
+    color : "darkred"
+  };
+  // console.log(params);
+  // send request to the server
+  socket.emit('extractData', params);
+}
+
+function makeBlueTransition() {
+  var ey2List = document.getElementById("ey2");
+  var tb2List = document.getElementById("tb2");
+  var params = {
+    brand : tb2List.options[tb2List.selectedIndex].text,
+    year : ey2List.options[ey2List.selectedIndex].text,
+    color : "darkblue"
+  };
+  // console.log(params);
+  // send request to the server
+  socket.emit('extractData', params);
+}
+
+//-------------------------------------------------------
+// updateGraph function
+//-------------------------------------------------------
+
+function updateGraph( data, color ) {
+
+  // DATA JOIN
+  // join new data with old elements if any
+  var rects = svg.selectAll("rect")
+      .data(data, function(d, i){ return d.dfam; });
+  var text = svg.selectAll("text.values")
+      .data(data, function(d, i){ return d.dfam; });
+  var xlabels = svg.selectAll("text.xAxis")
+      .data(data, function(d, i){ return d.dfam; });  
+
+  // UPDATE
+  // the bars
+  rects
+    .transition()
+      .duration(750)
+      .attr("fill", color)
+      .attr("y", function(datum) { return height - y(datum.counts); })
+      .attr("height", function(datum) { return y(datum.counts); });
+  // the text
+  text
+      .style("fill-opacity", 1e-6)
+    .transition()
+      .duration(750)
+      .style("fill-opacity", 1)
+      .attr("y", function(datum) { return height - y(datum.counts); })
+      .text(function(datum) { return datum.counts;})
+
+  // ENTER
+  // the bars
+  rects.enter().append("rect")
+      .attr("x", function(datum, index) { return x(index); })
+      .attr("y", height)
+      .attr("height", 0)
+      .attr("width", barWidth)
+      .attr("fill", color)
+    .transition()
+      .duration(750)
+      .attr("height", function(datum) { return y(datum.counts); })
+      .attr("y", function(datum) { return height - y(datum.counts); });
+  // the text with the values
+  text.enter().append("text")
+      .attr("class", "values")
+      .style("fill-opacity", 1e-6)
+      .attr("x", function(datum, index) { return x(index) + barWidth; })
+      .attr("y", height)
+      .attr("dx", -barWidth/2)
+      .attr("dy", "1.2em")
+      .attr("text-anchor", "middle")
+      .text(function(datum) { return datum.counts;})
+    .transition()
+      .style("fill-opacity", 1)
+      .duration(750)
+      .attr("y", function(datum) { return height - y(datum.counts); });
+  // the x-lablels with damage names
+  xlabels.enter().append("text")
+      .attr("class", "xAxis")
+      .attr("x", function(datum, index) { return x(index) + barWidth; })
+      .attr("y", height)
+      .attr("dy", "-0.4em")
+      .attr("dx", -barWidth/2)
+      .attr("text-anchor", "middle")
+      .text(function(datum) { return datum.dfam;})
+      .attr("transform", "translate(0, 18)");
+
+  // EXIT
+  rects.exit().remove();
+  text.exit().remove();
+  xlabels.exit().remove();
+}
+
+//-------------------------------------------------------
+// fillFilters function
+//-------------------------------------------------------
+// populate the filter lists with all available options from the database
+//    uniqueColumns = ['brand','exam_year'];
+function fillFilters(uniqueDict) {
+
+  uniqueDict.exam_year
+    .sort()
+    .forEach( function(ey, index) {
+      // list 1
+      var ey1List = document.getElementById("ey1");
+      var eyOption = new Option(ey, index);
+      ey1List.options.add( eyOption );
+      // list 2
+      var ey2List = document.getElementById("ey2");
+      var eyOption = new Option(ey, index);
+      ey2List.options.add( eyOption );
+    });
+
+    uniqueDict.brand
+    .sort()
+    .forEach( function(brand, index) {
+      // list 1
+      var tb1List = document.getElementById("tb1");
+      var tbOption = new Option(brand, index);
+      tb1List.options.add( tbOption );
+      // list 2
+      var tb2List = document.getElementById("tb2");
+      var tbOption = new Option(brand, index);
+      tb2List.options.add( tbOption );
+    });
+}
+
+</script>
+
+
+
