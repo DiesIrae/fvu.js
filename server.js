@@ -5,17 +5,18 @@ var DAMAGE_TYPES = ['ACCI', 'AGRE', 'AGZB', 'ENCF', 'ENST',
                     'USUR'];
 
 // Starting express and socket
-var http = require("http").Server(app);
 var fs = require("fs");
-var express = require("express"),
-    app = express();
-var io = require("socket.io")(http);
+var express = require("express");
+var app = express();
+var server = require("http").Server(app);
+var io = require("socket.io")(server);
 var csv = require("fast-csv");
 var mongo = require("mongodb");
 
-// Global variables
-var dbUser = "tiago",
-    dbPassword = "alceuamoroso65";
+// Configurations
+var dbConfig = JSON.parse(fs.readFileSync("dbConfig.json"));
+var serverHost = "127.0.0.1";
+var serverPort = 3000;
 
 // Delivering public files
 app.use(express.static(__dirname + "/public"));
@@ -27,13 +28,13 @@ app.get("/", function(req, res){
 // db object
 var db;
 var MongoClient = mongo.MongoClient;
-var mongoURI = "mongodb://"+dbUser+":"+dbPassword+"@ds051740.mongolab.com:51740/fvu";
+var mongoURI = "mongodb://"+dbConfig.dbUser+":"+dbConfig.dbPassword+dbConfig.dbAddress;
 
 // connects with the database
 MongoClient.connect(mongoURI, function(err, database) {
   if(err) throw err;
 
-  // reference to the database
+  // global reference to the database
   db = database;
 
   // define socket.io connections
@@ -53,32 +54,38 @@ MongoClient.connect(mongoURI, function(err, database) {
       });
     }); //socket.on(...)
 
-  	socket.on("extractData", function(params){
-      // console.log('brand: ' + params.brand);
-      // console.log('year: ' + params.year);
-      // console.log('color: ' + params.color); 		
-  		
-      // extract from the database
-  		extractDatabase(params, function(data){
-  			var msg = {
-  				data : data,
-  				color : params.color
-  			};
-  			io.emit('updateGraph', msg);
-        // console.log("data: ", msg.data);
-  		});
-  	
-  	}); //socket.on(...)
+    // Deals with damage family request
+    socket.on("extractDfamData", function(params){
+      console.log('params: ', params.length);
+      var n = params.length; // to check if assynchronous counting is over
+      var msgs = [];
+      params.forEach(function(param){
+        extractDatabase(param, function(data){
+          var msg = {
+            data : data,
+            color : param.color
+          };
+          msgs.push(msg);
+          if (msgs.length == n) { //if all extractions are done
+            console.log(msgs[0]);
+            console.log(msgs[1]);
+            io.emit('updateDfamGraph', msgs);
+          }; // if
+        }); // extractDatabase(...)
+      }); // params.forEach
+
+
+    }); //socket.on(...)
+
   }); //io.on(...)
-
-  // start the server
-  http.listen(3000, function(){
-    console.log("listening on *:3000");
-  });
-
-  
-
 }); // MongoClient.connect(...)
+
+// start the server
+server.listen(serverPort, serverHost, function(){
+  var host = server.address().address;
+  var port = server.address().port;
+  console.log('Listening at http://%s:%s', serverHost, serverPort);
+});
 
 
 //-------------------------------------------------------

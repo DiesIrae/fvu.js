@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<html>
+
+<head>
+	<title>test d3</title>
+</head>
+
+<body>
+
+<script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+<script>
+
+// First join
+
+var div = d3.select("body").selectAll("div")
+	.data([4, 8, 15, 16, 23, 42], function(d) { return d; });
+
+console.log("first join");
+console.log("enter length: ", div.enter().size());
+console.log("exit length: ", div.exit().size())
+
+div.enter().append("div")
+	.text(function(d) { return d; });
+
+// Second join
+
+var div = d3.select("body").selectAll("div")
+	.data([1, 2, 4, 8, 16, 32], function(d) { return d; });
+
+console.log("second join");
+console.log("enter length: ", div.enter().size());
+console.log("exit length: ", div.exit().size())
+
+div.enter().append("div")
+	.text(function(d) { return d; });
+div.exit().remove();
+
+</script>
+</body>
+</html>
