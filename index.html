@@ -72,6 +72,8 @@
   <svg class="chart"></svg>
 </div>
 
+<h3>TOP20 Damage Codes:</h3>
+
 <script type="text/javascript" src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
 <script type="text/javascript" src="http://d3js.org/d3.v3.min.js"></script> 
 <script type="text/javascript">
@@ -149,6 +151,11 @@ socket.on('updateDfamGraph', function(msgs){
   updateGraph(msgs);
 });
 
+socket.on('updateDmCodeGraph', function(data){
+  //update the graphs
+  updateDmCodeGraph(data);
+});
+
 //-------------------------------------------------------
 // makeTransition function
 //-------------------------------------------------------
@@ -167,6 +174,37 @@ function makeTransition() {
     });    
   })
   socket.emit('extractDfamData', params);
+  socket.emit('extractDmCodeData', params);
+
+}
+//-------------------------------------------------------
+
+//-------------------------------------------------------
+// updateDmCodeGraph function
+//-------------------------------------------------------
+
+function updateDmCodeGraph( data ) {
+
+  var div = d3.select("body").selectAll(".dmCodeDiv").data(data);
+    // .data(data, function(d) { return d.damage_code; });
+
+  div.text(function(d) { 
+          var text = 'damage_code: ' + d.damage_code + ' : red = ' + 
+                      d.darkred + ', blue = ' + d.darkblue + 
+                      ', total = ' + d.total_counts + '.';
+          return text; 
+        });
+
+  div.enter().append("div")
+      .attr("class", "dmCodeDiv")
+      .text(function(d) { 
+          var text = 'damage_code: ' + d.damage_code + ' : red = ' + 
+                      d.darkred + ', blue = ' + d.darkblue + 
+                      ', total = ' + d.total_counts + '.';
+          return text; 
+        });
+  div.exit().remove();
+
 
 }
 //-------------------------------------------------------
